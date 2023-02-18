@@ -1,0 +1,6 @@
+var test = 124.5;
+var lang = "aurora";
+var test2 = "test with numbers 123"
+if x == 1 {
+    print("hello")
+}
