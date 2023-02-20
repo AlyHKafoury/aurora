@@ -1,9 +1,9 @@
 use std::{env, process::exit, fs, io::{self, Write, stdout}};
+mod aurora;
 
 use aurora::parser;
+use aurora::interpreter::Interpreter;
 
-use crate::aurora::{interpreter::Interpreter, parser::expressions::Expression};
-mod aurora;
 
 fn main() {
     match  env::args().len() {
@@ -42,17 +42,13 @@ fn run(script: String) -> () {
     let mut scanner = aurora::scanner::Scanner::new(script);
     let tokens = scanner.scan_tokens();
     let mut parser = parser::Parser::new(tokens.clone());
-    let expr = parser.parse();
-    let inter = Interpreter::new(Vec::<Expression>::from([expr.clone()]));
+    let stmt = parser.parse();
+    let inter = Interpreter::new(stmt.clone());
     
     for token in tokens.iter() {
         println!("{token}",);
     }
-    println!("{:?}", expr);
-    println!("{:?}", inter.interpret());
-}
-
-fn error(line:usize, message:String) -> () {
-    print!("Had error at line {line}, Message: {message}") 
+    println!("{:?}", stmt);
+    inter.interpret();
 }
 

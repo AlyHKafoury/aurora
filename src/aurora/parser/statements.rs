@@ -10,6 +10,20 @@ pub enum Statement {
     If{condition: Expression, then_branch: Box<Statement>, else_branch: Box<Statement>},
     Print{expression: Expression},
     Return{keyword: Token, value: Expression},
-    Variable{name: Token, init: Expression},
+    Variable{name: Token, init: Option<Expression>},
     While{condition: Expression, body: Box<Statement>},
+}
+
+impl Statement {
+    pub fn evaluate(&mut self) {
+        match &*self {
+        Statement::Print { expression: expr } => {
+            println!("{:?}", expr.evaluate())
+        }
+        Statement::Expression { expression: expr } => {
+            println!("{:?}", expr.evaluate())
+        }
+        _ => panic!("Invalid Statement")
+        }
+    }
 }

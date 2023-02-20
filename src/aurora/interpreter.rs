@@ -1,18 +1,17 @@
-use super::parser::expressions::{Expression, Object};
+use super::parser::statements::Statement;
 
 pub struct Interpreter {
-    expressions: Vec<Expression>
+    statments: Vec<Statement>
 }
 
 impl Interpreter {
-    pub fn new(expressions: Vec<Expression> ) -> Self {
-        return Interpreter { expressions }
+    pub fn new(statments: Vec<Statement> ) -> Self {
+        return Interpreter { statments }
     }
 
-    pub fn interpret(& self) -> Object {
-        for expr in self.expressions.clone() {
-            return expr.evaluate()
+    pub fn interpret(&self) {
+        for mut stmt in self.statments.clone() {
+            stmt.evaluate()
         }
-        return Object::NilObject(None);
     }
 }

@@ -62,7 +62,7 @@ impl Scanner {
         return self
             .source
             .chars()
-            .nth((self.current - 1) )
+            .nth(self.current - 1)
             .unwrap();
     }
 
@@ -71,7 +71,7 @@ impl Scanner {
             .source
             .chars()
             .skip(self.start )
-            .take((self.current - self.start) )
+            .take(self.current - self.start)
             .collect();
         self.tokens.push(token::Token {
             lexeme: text,
@@ -173,8 +173,8 @@ impl Scanner {
         let text: String = self
             .source
             .chars()
-            .skip((self.start + 1) )
-            .take((self.current - (self.start + 2)) )
+            .skip(self.start + 1)
+            .take(self.current - (self.start + 2))
             .collect();
         self.add_token(TokenType::String, text);
     }
@@ -199,7 +199,7 @@ impl Scanner {
             self.source
                 .chars()
                 .skip(self.start )
-                .take((self.current - self.start) )
+                .take(self.current - self.start)
                 .collect(),
         )
     }
@@ -211,7 +211,7 @@ impl Scanner {
         return self
             .source
             .chars()
-            .nth((self.current + 1) )
+            .nth(self.current + 1)
             .unwrap();
     }
 
@@ -231,7 +231,7 @@ impl Scanner {
             .source
             .chars()
             .skip(self.start )
-            .take((self.current - self.start) )
+            .take(self.current - self.start)
             .collect();
         let tokentype = self.keywords.get(&text).unwrap_or(&TokenType::Identifier);
         self.add_token(tokentype.to_owned(), String::new());

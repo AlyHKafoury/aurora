@@ -1,5 +1,7 @@
 use crate::aurora::token;
 
+use self::{statements::Statement, expressions::Expression};
+
 use super::token::TokenType;
 pub mod expressions;
 pub mod statements;
@@ -166,6 +168,9 @@ impl Parser {
                 },
             };
         }
+        if self.matches(Vec::from([TokenType::Var])){
+            return Expression::Variable { name: self.previous() }
+        }
         if self.matches(Vec::from([TokenType::LeftParen])) {
             let expr = self.expression();
             self.consume(TokenType::RightParen, "Expect ) after expression");
@@ -183,7 +188,7 @@ impl Parser {
         if self.check(tokentype.clone()) {
             return self.advance();
         }
-        panic!("Faild to Consume Correct token type {}", tokentype);
+        panic!("Faild to Consume Correct token type {} {}", tokentype, message);
     }
 
     fn synchronize(&mut self) -> () {
@@ -210,7 +215,53 @@ impl Parser {
         }
     }
 
-    pub fn parse(&mut self) -> expressions::Expression {
-        return self.expression();
+    fn print_statement(&mut self) -> Statement {
+        let expr = self.expression();
+        self.consume(TokenType::SemiColon, "expected ; after print value");
+
+        return Statement::Print { expression: expr };
+    }
+
+    fn expr_statement(&mut self) -> Statement {
+        let expr = self.expression();
+        self.consume(TokenType::SemiColon, "expected ; after expression");
+
+        return Statement::Expression { expression: expr };
+    }
+
+    fn statement(&mut self) -> Statement {
+        if self.matches(Vec::<TokenType>::from([TokenType::Print])) {
+            return self.print_statement();
+        }
+
+        return self.expr_statement();
+    }
+
+    fn declaration(&mut self) -> Statement {
+        if self.matches(Vec::<TokenType>::from([TokenType::Var])) {
+            return self.var_declaration();
+        }
+        return self.statement();
+    }
+
+    fn var_declaration(&mut self) -> Statement {
+        let name = self.consume(TokenType::Identifier, "expected variable name");
+
+        let mut init = None;
+        if self.matches(Vec::<TokenType>::from([TokenType::Equal])) {
+            init = Some(self.expression());
+        }
+
+        self.consume(TokenType::SemiColon, "expected semicolon after initlizer");
+        return Statement::Variable { name: name, init: init };
+    }
+
+    pub fn parse(&mut self) -> Vec<Statement> {
+        let mut statements = Vec::<Statement>::new();
+        while !self.at_end() {
+            statements.push(self.declaration());
+        }
+
+        return statements;
     }
 }
