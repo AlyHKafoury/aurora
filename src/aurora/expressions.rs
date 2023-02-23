@@ -1,12 +1,14 @@
 use crate::aurora::token::{Token, TokenType};
 use std::mem;
 
+use super::environment::Environment;
+
 #[derive(Debug,PartialEq, PartialOrd, Clone)]
 pub enum Object {
     StringObject(String),
     NumberObject(f64),
     BoolObject(bool),
-    NilObject(Option<usize>)
+    NilObject,
 }
 
 #[derive(Debug,PartialEq, PartialOrd, Clone)]
@@ -26,11 +28,11 @@ pub enum Expression {
 }
 
 impl Expression {
-    pub fn evaluate(&self) -> Object {
+    pub fn evaluate(&self, env: &mut Environment) -> Object {
         match self {
             Expression::Binary{left: l, operator: op, right: r} => {
-                let left_value = l.evaluate();
-                let right_value = r.evaluate();
+                let left_value = l.evaluate(env);
+                let right_value = r.evaluate(env);
                 if mem::discriminant(&left_value) != mem::discriminant(&right_value) {
                     panic!("Left object {:?} not the same type as right object {:?}", left_value, right_value);
                 }
@@ -106,7 +108,7 @@ impl Expression {
                 }
             }
             Expression::Unary { operator: op, right: r } => {
-                let right_value = r.evaluate();
+                let right_value = r.evaluate(env);
 
                 match op.tokentype {
                     TokenType::Bang => {
@@ -126,11 +128,20 @@ impl Expression {
                     _ => {panic!("Invalid Operator Type {}", op)}   
                 }
             }
+            Expression::Variable { name: n } => {
+                return env.get(n.clone());
+            }
             Expression::Literal { value:v } => {
                 return (*v).clone();
             }
             Expression::Grouping { expression: e } => {
-                return e.evaluate();
+                return e.evaluate(env);
+            }
+            Expression::Assign { name: n, value: v } => {
+                let value = v.evaluate(env);
+
+                env.assign(n.clone(), value.clone());
+                return value;
             }
             _ => {panic!("No implementation")}
         }

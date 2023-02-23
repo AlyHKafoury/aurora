@@ -1,10 +1,8 @@
 use crate::aurora::token;
 
-use self::{statements::Statement, expressions::Expression};
+use super::{expressions::Expression, expressions::Object, statements::Statement};
 
 use super::token::TokenType;
-pub mod expressions;
-pub mod statements;
 pub struct Parser {
     pub tokens: Vec<token::Token>,
     current: usize,
@@ -54,18 +52,34 @@ impl Parser {
         return false;
     }
 
-    fn expression(&mut self) -> expressions::Expression {
-        return self.equality();
+    fn expression(&mut self) -> Expression {
+        return self.assignment();
     }
 
-    fn equality(&mut self) -> expressions::Expression {
+    fn assignment(&mut self) -> Expression {
+        let expr = self.equality();
+
+        if self.matches(Vec::from([TokenType::Equal])) {
+            let value = self.assignment();
+
+            match expr {
+                Expression::Variable { name: n } => { 
+                    return Expression::Assign { name: n, value: Box::new(value) }
+                },
+                _=> panic!("Invalid assignment {:?}", self.previous())
+            }
+        }
+        return expr
+    }
+
+    fn equality(&mut self) -> Expression {
         println!("in equality");
         let mut expr = self.comparison();
 
         while self.matches(Vec::from([TokenType::BangEqual, TokenType::EqualEqual])) {
             let operator = self.previous();
             let right = self.comparison();
-            expr = expressions::Expression::Binary {
+            expr = Expression::Binary {
                 left: Box::new(expr.clone()),
                 operator: operator,
                 right: Box::new(right),
@@ -74,7 +88,7 @@ impl Parser {
         return expr;
     }
 
-    fn comparison(&mut self) -> expressions::Expression {
+    fn comparison(&mut self) -> Expression {
         println!("in comp");
         let mut expr = self.term();
 
@@ -86,7 +100,7 @@ impl Parser {
         ])) {
             let operator = self.previous();
             let right = self.term();
-            expr = expressions::Expression::Binary {
+            expr = Expression::Binary {
                 left: Box::new(expr.clone()),
                 operator: operator,
                 right: Box::new(right),
@@ -95,14 +109,14 @@ impl Parser {
         return expr;
     }
 
-    fn term(&mut self) -> expressions::Expression {
+    fn term(&mut self) -> Expression {
         println!("in term");
         let mut expr = self.factor();
 
         while self.matches(Vec::from([TokenType::Minus, TokenType::Plus])) {
             let operator = self.previous();
             let right = self.factor();
-            expr = expressions::Expression::Binary {
+            expr = Expression::Binary {
                 left: Box::new(expr.clone()),
                 operator: operator,
                 right: Box::new(right),
@@ -111,14 +125,14 @@ impl Parser {
         return expr;
     }
 
-    fn factor(&mut self) -> expressions::Expression {
+    fn factor(&mut self) -> Expression {
         println!("in factor");
         let mut expr = self.unary();
 
         while self.matches(Vec::from([TokenType::Slash, TokenType::Star])) {
             let operator = self.previous();
             let right = self.unary();
-            expr = expressions::Expression::Binary {
+            expr = Expression::Binary {
                 left: Box::new(expr.clone()),
                 operator: operator,
                 right: Box::new(right),
@@ -127,12 +141,12 @@ impl Parser {
         return expr;
     }
 
-    fn unary(&mut self) -> expressions::Expression {
+    fn unary(&mut self) -> Expression {
         println!("in unary");
         if self.matches(Vec::from([TokenType::Bang, TokenType::Minus])) {
             let operator = self.previous();
             let right = self.unary();
-            return expressions::Expression::Unary {
+            return Expression::Unary {
                 operator: operator,
                 right: Box::new(right),
             };
@@ -140,41 +154,45 @@ impl Parser {
         return self.primary();
     }
 
-    fn primary(&mut self) -> expressions::Expression {
+    fn primary(&mut self) -> Expression {
         println!("in primary");
         if self.matches(Vec::from([TokenType::False])) {
-            return expressions::Expression::Literal {
-                value: expressions::Object::BoolObject(false),
+            return Expression::Literal {
+                value: Object::BoolObject(false),
             };
         }
         if self.matches(Vec::from([TokenType::True])) {
-            return expressions::Expression::Literal {
-                value: expressions::Object::BoolObject(true),
+            return Expression::Literal {
+                value: Object::BoolObject(true),
             };
         }
         if self.matches(Vec::from([TokenType::Nil])) {
-            return expressions::Expression::Literal {
-                value: expressions::Object::NilObject(None),
+            return Expression::Literal {
+                value: Object::NilObject,
             };
         }
         if self.matches(Vec::from([TokenType::Number, TokenType::String])) {
-            return expressions::Expression::Literal {
+            return Expression::Literal {
                 value: match self.previous().tokentype {
-                    TokenType::String => expressions::Object::StringObject(self.previous().literal),
-                    TokenType::Number => expressions::Object::NumberObject(
-                        self.previous().literal.parse::<f64>().unwrap(),
-                    ),
-                    _ => {panic!("Token Not Number or String! {}", self.previous())}
+                    TokenType::String => Object::StringObject(self.previous().literal),
+                    TokenType::Number => {
+                        Object::NumberObject(self.previous().literal.parse::<f64>().unwrap())
+                    }
+                    _ => {
+                        panic!("Token Not Number or String! {}", self.previous())
+                    }
                 },
             };
         }
-        if self.matches(Vec::from([TokenType::Var])){
-            return Expression::Variable { name: self.previous() }
+        if self.matches(Vec::from([TokenType::Identifier])) {
+            return Expression::Variable {
+                name: self.previous(),
+            };
         }
         if self.matches(Vec::from([TokenType::LeftParen])) {
             let expr = self.expression();
             self.consume(TokenType::RightParen, "Expect ) after expression");
-            return expressions::Expression::Grouping {
+            return Expression::Grouping {
                 expression: Box::new(expr),
             };
         }
@@ -188,7 +206,10 @@ impl Parser {
         if self.check(tokentype.clone()) {
             return self.advance();
         }
-        panic!("Faild to Consume Correct token type {} {}", tokentype, message);
+        panic!(
+            "Faild to Consume Correct token type {} {}",
+            tokentype, message
+        );
     }
 
     fn synchronize(&mut self) -> () {
@@ -232,9 +253,23 @@ impl Parser {
     fn statement(&mut self) -> Statement {
         if self.matches(Vec::<TokenType>::from([TokenType::Print])) {
             return self.print_statement();
+        } else if self.matches(Vec::<TokenType>::from([TokenType::LeftBrace])) {
+            return self.block();
         }
 
         return self.expr_statement();
+    }
+
+    fn block(&mut self) -> Statement {
+        let mut stmnts = Vec::<Statement>::new();
+        
+        while !self.check(TokenType::RightBrace) && !self.at_end() {
+            stmnts.push(self.declaration());
+        }
+
+        self.consume(TokenType::RightBrace, "expect '}' after block");
+
+        return Statement::Block { statements: stmnts }
     }
 
     fn declaration(&mut self) -> Statement {
@@ -253,7 +288,7 @@ impl Parser {
         }
 
         self.consume(TokenType::SemiColon, "expected semicolon after initlizer");
-        return Statement::Variable { name: name, init: init };
+        return Statement::Variable { name: name, init };
     }
 
     pub fn parse(&mut self) -> Vec<Statement> {

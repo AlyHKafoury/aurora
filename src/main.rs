@@ -43,7 +43,7 @@ fn run(script: String) -> () {
     let tokens = scanner.scan_tokens();
     let mut parser = parser::Parser::new(tokens.clone());
     let stmt = parser.parse();
-    let inter = Interpreter::new(stmt.clone());
+    let mut inter = Interpreter::new(stmt.clone());
     
     for token in tokens.iter() {
         println!("{token}",);
