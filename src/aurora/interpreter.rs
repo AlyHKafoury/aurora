@@ -1,4 +1,4 @@
-use super::{statements::Statement, environment::{Memory, Environment}};
+use super::{statements::Statement, environment::Environment};
 
 pub struct Interpreter {
     statments: Vec<Statement>,

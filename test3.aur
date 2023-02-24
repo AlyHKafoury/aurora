@@ -1,0 +1,36 @@
+fun sum(a,b,c) {
+    print a + b + c;
+}
+
+fun min(a,b) {
+    print a > b;
+}
+
+fun test(){
+    fun pp(){
+        print "test from pp";
+        if(false) {
+            return 1;
+        }else {
+            return 2;
+        }
+        return 3;
+    }
+    print pp();
+}
+
+sum(3, 5, 5);
+
+min(2,1);
+
+test();
+
+var global = "global";
+print global;
+fun local() {
+    var global = "local";
+    print global;
+}
+
+local();
+print global;
