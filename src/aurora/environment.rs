@@ -62,6 +62,14 @@ impl Environment {
         }
     }
 
+    pub fn stack_temp_push(&mut self) {
+        self.stack.push(Memory::new()); 
+    }
+
+    pub fn stack_temp_pop(&mut self) {
+        self.stack.pop();
+    }
+
     pub fn inject(&mut self, t:Token, v: Object) {
         self.injects.push((t, v));
     }
@@ -93,6 +101,30 @@ impl Environment {
         }
 
         panic!("Undefined variable {}", token.lexeme);
+    }
+
+    pub fn need_to_capture(&self, token: Token) -> bool {
+        let oringal_size = self.stack.len() - 1;
+        let mut memorysize = self.stack.len() - 1;
+
+        loop {
+            match self.stack[memorysize].get(token.clone()) {
+                Some(_) => if memorysize == oringal_size {
+                    return false
+                }else{
+                    return true
+                },
+                _ => {
+                    if memorysize > 0 {
+                        memorysize -= 1
+                    } else if memorysize == 0 {
+                        break;
+                    }
+                }
+            }
+        }
+
+        panic!("Undefined variable {}, {:?}", token.lexeme, self.stack);
     }
 
     pub fn assign(&mut self, token: Token, value: Object) {

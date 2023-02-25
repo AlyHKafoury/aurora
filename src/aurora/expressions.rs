@@ -12,6 +12,7 @@ pub enum Object {
         name: Token,
         parameters: Vec<Token>,
         body: Box<Statement>,
+        captures: Vec<(Token, Object)>,
 
     },
     NilObject,
@@ -275,9 +276,12 @@ impl Expression {
             Expression::Call { callee, paren, arguments } => {
                 let function = callee.evaluate(env);
                 match function {
-                    Object::FunctionObject { name, parameters, body } => {
+                    Object::FunctionObject { name, parameters, body , captures} => {
                         if arguments.len() != parameters.len() {
                             panic!("Wrong Number of arguments for function {}", &name);
+                        }
+                        for capture in captures {
+                            env.inject(capture.0, capture.1);
                         }
                         let arguments_values: Vec<Object> = arguments.into_iter().map(|x| x.evaluate(env)).collect();
                         for i in 0..parameters.len() {
@@ -292,4 +296,43 @@ impl Expression {
             _ => panic!("No implementation"),
         }
     }
+
+    pub fn resolve(&self, captures: &mut Vec<(Token, Object)>, env: &Environment) {
+        match self {
+            Expression::Assign { name, value } => {
+                value.resolve(captures, env);
+                match env.need_to_capture(name.clone()) {
+                    true => captures.push((name.clone(), env.get(name.clone()))),
+                    false => ()
+                }
+            },
+            Expression::Binary { left, operator:_, right } => {
+                left.resolve(captures, env);
+                right.resolve(captures, env);
+            },
+            Expression::Call { callee, paren:_, arguments } => {
+                callee.resolve(captures, env);
+                for v in arguments {
+                    v.resolve(captures, env);
+                }
+            },
+            Expression::Get { object, name } => todo!(),
+            Expression::Grouping { expression } => expression.resolve(captures, env),
+            Expression::Literal { value:_ } => (),
+            Expression::Logical { left, operator:_, right } => {
+                left.resolve(captures, env);
+                right.resolve(captures, env);
+            },
+            Expression::Set { object, name, value } => todo!(),
+            Expression::Super { keyword, method } => todo!(),
+            Expression::This { keyword } => todo!(),
+            Expression::Unary { operator:_, right } => right.resolve(captures, env),
+            Expression::Variable { name } => {
+                match env.need_to_capture(name.clone()) {
+                    true => captures.push((name.clone(), env.get(name.clone()))),
+                    false => ()
+                }
+            },
+        }
+    } 
 }

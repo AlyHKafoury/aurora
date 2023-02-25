@@ -134,24 +134,105 @@ impl Statement {
                 }
             }
             Statement::Function { name, params, body } => {
+                let mut captures = Vec::<(Token, Object)>::new();
+                env.stack_temp_push();
+                for t in params {
+                    env.define(t.clone(), Object::NilObject);                    
+                }
+                body.resolve(&mut captures, env);
+                env.stack_temp_pop();
                 env.define(
                     name.clone(),
                     Object::FunctionObject {
                         name: name.clone(),
                         parameters: params.clone(),
                         body: body.clone(),
+                        captures: captures,
                     },
                 );
             }
-            Statement::Return { keyword, value } => {
-                match value {
-                    Some(expr) => {
-                        let object_value = expr.evaluate(env);
-                        env.set_return(object_value);},
-                    None => env.set_return(Object::NilObject)
+            Statement::Return { keyword:_, value } => match value {
+                Some(expr) => {
+                    let object_value = expr.evaluate(env);
+                    env.set_return(object_value);
+                }
+                None => env.set_return(Object::NilObject),
+            },
+            _ => panic!("Invalid Statement"),
+        }
+    }
+
+    pub fn resolve(&self, captures: &mut Vec<(Token, Object)>, env: &mut Environment) {
+        match self {
+            Statement::Block { statements } => {
+                for s in statements {
+                    s.resolve(captures, env);
                 }
             }
-            _ => panic!("Invalid Statement"),
+            Statement::Class {
+                name,
+                superclass,
+                methods,
+            } => todo!(),
+            Statement::Expression { expression } => expression.resolve(captures, env),
+            Statement::Function {
+                name,
+                params,
+                body,
+            } => {
+                env.define(name.clone(), Object::NilObject);
+                for t in params {
+                    env.define(t.clone(), Object::NilObject);                    
+                }
+                body.resolve(captures, env);
+            }
+            Statement::If {
+                condition,
+                then_branch,
+                else_branch,
+            } => {
+                condition.resolve(captures, env);
+                then_branch.resolve(captures, env);
+                match else_branch {
+                    Some(s) => s.resolve(captures, env),
+                    None => (),
+                }
+            }
+            Statement::Print { expression } => expression.resolve(captures, env),
+            Statement::Return { keyword:_, value } => match value {
+                Some(x) => x.resolve(captures, env),
+                None => (),
+            },
+            Statement::Variable { name, init } => {
+                env.define(name.clone(), Object::NilObject);
+                match init {
+                Some(x) => x.resolve(captures, env),
+                None => (),
+            }},
+            Statement::While { condition, body } => {
+                condition.resolve(captures, env);
+                body.resolve(captures, env);
+            },
+            Statement::For {
+                init,
+                condition,
+                increment,
+                body,
+            } => {
+                match &*(*init) {
+                    Some(s) => s.resolve(captures, env),
+                    None => (),
+                }
+                match condition {
+                    Some(x) => x.resolve(captures, env),
+                    None => (),
+                }
+                match increment {
+                    Some(x) => x.resolve(captures, env),
+                    None => (),
+                }
+                body.resolve(captures, env);
+            },
         }
     }
 }

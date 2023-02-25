@@ -7,8 +7,11 @@ fun min(a,b) {
 }
 
 fun test(){
+    var x = "inner";
+    x = "inner2";
     fun pp(){
         print "test from pp";
+        print x;
         if(false) {
             return 1;
         }else {
@@ -17,13 +20,14 @@ fun test(){
         return 3;
     }
     print pp();
+    return pp;
 }
 
 sum(3, 5, 5);
 
 min(2,1);
 
-test();
+var test2 = test();
 
 var global = "global";
 print global;
@@ -34,3 +38,5 @@ fun local() {
 
 local();
 print global;
+var x = "outter";
+test2();
