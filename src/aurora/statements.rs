@@ -50,7 +50,7 @@ pub enum Statement {
 }
 
 impl Statement {
-    pub fn evaluate(&mut self, env: &mut Environment) {
+    pub fn evaluate(&self, env: &mut Environment) {
         match &*self {
             Statement::Print { expression: expr } => {
                 println!("{:?}", expr.evaluate(env))
@@ -59,7 +59,7 @@ impl Statement {
                 expr.evaluate(env);
             }
             Statement::Variable { name: n, init } => {
-                let value = match init.clone() {
+                let value = match init {
                     Some(expr) => expr.evaluate(env),
                     None => super::expressions::Object::NilObject,
                 };
@@ -68,7 +68,7 @@ impl Statement {
             }
             Statement::Block { statements } => {
                 env.stackpush();
-                for stmnt in statements.clone().iter_mut() {
+                for stmnt in statements.iter() {
                     stmnt.evaluate(env);
                     if env.is_set_return() {
                         break;
@@ -80,13 +80,13 @@ impl Statement {
                 condition,
                 then_branch,
                 else_branch,
-            } => match condition.clone().evaluate(env) {
+            } => match condition.evaluate(env) {
                 Object::BoolObject(x) => match x {
                     true => {
-                        then_branch.clone().evaluate(env);
+                        then_branch.evaluate(env);
                     }
                     false => match else_branch {
-                        Some(b) => b.clone().evaluate(env),
+                        Some(b) => b.evaluate(env),
                         None => (),
                     },
                 },
@@ -94,8 +94,8 @@ impl Statement {
             },
             Statement::While { condition, body } => {
                 let vals = vec![Object::BoolObject(false), Object::NilObject];
-                while !vals.contains(&condition.clone().evaluate(env)) {
-                    body.clone().evaluate(env);
+                while !vals.contains(&condition.evaluate(env)) {
+                    body.evaluate(env);
                 }
             }
             Statement::For {
@@ -104,19 +104,19 @@ impl Statement {
                 increment,
                 body,
             } => {
-                match *init.clone() {
-                    Some(stmnt) => stmnt.clone().evaluate(env),
+                match &*(*init) {
+                    Some(stmnt) => {let _ = &stmnt.evaluate(env);},
                     None => (),
-                }
+                };
 
                 match condition {
                     Some(expr) => {
                         let vals = vec![Object::BoolObject(false), Object::NilObject];
-                        while !vals.contains(&expr.clone().evaluate(env)) {
-                            body.clone().evaluate(env);
+                        while !vals.contains(&expr.evaluate(env)) {
+                            body.evaluate(env);
                             match increment {
                                 Some(expr) => {
-                                    expr.clone().evaluate(env);
+                                    expr.evaluate(env);
                                 }
                                 None => (),
                             }

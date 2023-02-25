@@ -287,7 +287,7 @@ impl Expression {
                         for i in 0..parameters.len() {
                             env.inject(parameters[i].clone(), arguments_values[i].clone());
                         }
-                        body.clone().evaluate(env);
+                        body.evaluate(env);
                         return env.unset_return();
                     },
                     _ => panic!("Object {} not a function at {}", paren.lexeme ,paren.line)
