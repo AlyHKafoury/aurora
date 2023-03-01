@@ -1,9 +1,22 @@
 class Test {
+    function Test() {
+        this.a = "constructor worked";
+        print "executed constructor";
+    }
     function testcode(){
         print this.p;
+    }
+    function testcons() {
+        print this.a;
+    }
+    function testselfassign(){
+        this.a = "self assign worked !!!!!!!!!!!!!!!!!!";
+        print this.a;
     }
 }
 
 var a = Test();
 a.p = "valid";
 a.testcode();
+a.testcons();
+a.testselfassign();

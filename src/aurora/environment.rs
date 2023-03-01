@@ -8,16 +8,12 @@ use super::{
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub struct Memory {
     stack: BTreeMap<String, Object>,
-    in_function: Option<FunctionType>,
-    class_instance: Option<Token>,
 }
 
 impl Memory {
     pub fn new() -> Self {
         return Memory {
             stack: BTreeMap::<String, Object>::new(),
-            in_function: None,
-            class_instance: None,
         };
     }
 
@@ -49,8 +45,8 @@ pub struct Environment {
     return_switch: bool,
     return_value: Object,
     injects: Vec<(Token, Object)>,
-    in_function: Option<FunctionType>,
-    class_instance: Option<Token>,
+    in_function: Vec<FunctionType>,
+    class_instance: Vec<Token>,
 }
 
 impl Environment {
@@ -62,16 +58,12 @@ impl Environment {
             return_switch: false,
             return_value: Object::NilObject,
             injects: Vec::<(Token, Object)>::new(),
-            in_function: None,
-            class_instance: None,
+            in_function: Vec::<FunctionType>::new(),
+            class_instance: Vec::<Token>::new(),
         };
     }
 
     pub fn stackpush(&mut self, mut memory: Memory) {
-        memory.in_function = self.in_function.clone();
-        memory.class_instance = self.class_instance.clone();
-        self.class_instance = None;
-        self.in_function = None;
         self.stack.push(memory);
         loop {
             match self.injects.pop() {
@@ -186,31 +178,53 @@ impl Environment {
         return value;
     }
 
-    pub fn set_in_function(&mut self, in_function: Option<FunctionType>) {
-        self.in_function = in_function;
+    pub fn set_in_function(&mut self, in_function: FunctionType) {
+        self.in_function.push(in_function);
     }
 
-    pub fn set_class_instance(&mut self, class_instance: Option<Token>) {
-        self.class_instance = class_instance;
+    pub fn set_class_instance(&mut self, class_instance: Token) {
+        self.class_instance.push(class_instance);
     }
 
     pub fn is_in_function(&self) -> bool{
-        match self.stack.last().unwrap().in_function {
+        match self.in_function.last() {
             Some(FunctionType::Function) => true,
             _ => false
         }
     }
     pub fn is_in_method(&self) -> bool{
-        match self.stack.last().unwrap().in_function {
+        match self.in_function.last() {
             Some(FunctionType::Method) => true,
             _ => false
         }
     }
-    pub fn is_class_instance(&self) -> Option<Token> {
-        self.stack.last().unwrap().class_instance.clone()
+    pub fn is_in_constructor(&self) -> bool{
+        match self.in_function.last() {
+            Some(FunctionType::Constructor) => true,
+            _ => false
+        }
+    }
+    pub fn is_class_instance(&mut self) -> Option<Token> {
+        let value = self.class_instance.pop();
+        match value.clone() {
+            Some(v) => {
+                self.class_instance.push(v.clone());
+                value
+            },
+            None => None
+        }
+        
     }
     
     pub fn clear_class_instance(&mut self) {
-        self.class_instance = None;
+        self.class_instance.pop();
+    }
+
+    pub fn clear_in_function(&mut self) {
+        self.in_function.pop();
+    }
+
+    pub fn assign_instance(&mut self, k: Token, v: Object) {
+        self.stack[1].define(k, v);
     }
 }

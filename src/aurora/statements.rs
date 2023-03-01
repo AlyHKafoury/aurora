@@ -198,6 +198,7 @@ impl Statement {
                 }
                 env.stack_temp_pop();
                 let mut class_env = Environment::new();
+                class_env.define(name.clone(), Object::NilObject);
                 for capture in captures {
                     class_env.inject(capture.0, capture.1);
                 }
