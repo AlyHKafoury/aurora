@@ -1,0 +1,9 @@
+class Test {
+    function testcode(){
+        print this.p;
+    }
+}
+
+var a = Test();
+a.p = "valid";
+a.testcode();

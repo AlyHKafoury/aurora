@@ -22,7 +22,7 @@ impl Scanner {
         keywords.insert(String::from("else"), TokenType::Else);
         keywords.insert(String::from("false"), TokenType::False);
         keywords.insert(String::from("for"), TokenType::For);
-        keywords.insert(String::from("fun"), TokenType::Fun);
+        keywords.insert(String::from("function"), TokenType::Fun);
         keywords.insert(String::from("if"), TokenType::If);
         keywords.insert(String::from("nil"), TokenType::Nil);
         keywords.insert(String::from("or"), TokenType::Or);

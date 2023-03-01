@@ -45,10 +45,10 @@ fn run(script: String) -> () {
     let stmt = parser.parse();
     let mut inter = Interpreter::new(stmt.clone());
     
-    for token in tokens.iter() {
-        println!("{token}",);
-    }
-    println!("{:?}", stmt);
+    // for token in tokens.iter() {
+    //     println!("{token}",);
+    // }
+    // println!("{:?}", stmt);
     inter.interpret();
 }
 

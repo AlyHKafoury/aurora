@@ -1,5 +1,6 @@
 use crate::aurora::token;
 
+use super::expressions::FunctionType;
 use super::statements;
 use super::{expressions::Expression, expressions::Object, statements::Statement};
 
@@ -70,6 +71,13 @@ impl Parser {
                         value: Box::new(value),
                     }
                 }
+                Expression::Get { object, name } => {
+                    return Expression::Set {
+                        object: object.clone(),
+                        name: name.clone(),
+                        value: Box::new(value),
+                    }
+                }
                 _ => panic!("Invalid assignment {:?}", self.previous()),
             }
         }
@@ -109,7 +117,6 @@ impl Parser {
     }
 
     fn equality(&mut self) -> Expression {
-        println!("in equality");
         let mut expr = self.comparison();
 
         while self.matches(Vec::from([TokenType::BangEqual, TokenType::EqualEqual])) {
@@ -125,7 +132,6 @@ impl Parser {
     }
 
     fn comparison(&mut self) -> Expression {
-        println!("in comp");
         let mut expr = self.term();
 
         while self.matches(Vec::from([
@@ -146,7 +152,6 @@ impl Parser {
     }
 
     fn term(&mut self) -> Expression {
-        println!("in term");
         let mut expr = self.factor();
 
         while self.matches(Vec::from([TokenType::Minus, TokenType::Plus])) {
@@ -162,7 +167,6 @@ impl Parser {
     }
 
     fn factor(&mut self) -> Expression {
-        println!("in factor");
         let mut expr = self.unary();
 
         while self.matches(Vec::from([TokenType::Slash, TokenType::Star])) {
@@ -178,7 +182,6 @@ impl Parser {
     }
 
     fn unary(&mut self) -> Expression {
-        println!("in unary");
         if self.matches(Vec::from([TokenType::Bang, TokenType::Minus])) {
             let operator = self.previous();
             let right = self.unary();
@@ -196,6 +199,12 @@ impl Parser {
         loop {
             if self.matches(vec![TokenType::LeftParen]) {
                 expr = self.do_call(&mut expr);
+            } else if self.matches(vec![TokenType::Dot]) {
+                let name = self.consume(TokenType::Identifier, "expected identifier");
+                expr = Expression::Get {
+                    object: Box::new(expr),
+                    name,
+                }
             } else {
                 break;
             }
@@ -229,7 +238,6 @@ impl Parser {
     }
 
     fn primary(&mut self) -> Expression {
-        println!("in primary");
         if self.matches(Vec::from([TokenType::False])) {
             return Expression::Literal {
                 value: Object::BoolObject(false),
@@ -258,6 +266,9 @@ impl Parser {
                 },
             };
         }
+        if self.matches(vec![TokenType::This]) {
+            return Expression::This { keyword: self.previous() }
+        }
         if self.matches(Vec::from([TokenType::Identifier])) {
             return Expression::Variable {
                 name: self.previous(),
@@ -282,7 +293,9 @@ impl Parser {
         }
         panic!(
             "Faild to Consume Correct token type {}, {}. {}",
-            tokentype, message, self.current
+            tokentype,
+            message,
+            self.tokens.iter().nth(self.current).unwrap().clone()
         );
     }
 
@@ -335,9 +348,7 @@ impl Parser {
             return self.while_statment();
         } else if self.matches(Vec::<TokenType>::from([TokenType::For])) {
             return self.for_statement();
-        }   else if self.matches(Vec::<TokenType>::from([TokenType::Fun])) {
-            return self.function("function".to_string());
-        }   else if self.matches(Vec::<TokenType>::from([TokenType::Return])) {
+        } else if self.matches(Vec::<TokenType>::from([TokenType::Return])) {
             return self.return_statement();
         }
 
@@ -353,18 +364,28 @@ impl Parser {
         }
 
         self.consume(TokenType::SemiColon, "expected semicolon after return");
-        return Statement::Return { keyword, value: value }
+        return Statement::Return {
+            keyword,
+            value: value,
+        };
     }
 
-    fn function(&mut self, functype: String) -> Statement {
+    fn function(&mut self, functype: FunctionType) -> Statement {
+        if functype == FunctionType::Method {
+            self.consume(
+                TokenType::Fun,
+                format!("expect function keyword {:#?} for", &functype).as_str(),
+            );
+        }
+
         let name = self.consume(
             TokenType::Identifier,
-            format!("expect {} name", &functype).as_str(),
+            format!("expect {:#?} name", &functype).as_str(),
         );
 
         self.consume(
             TokenType::LeftParen,
-            format!("expect ( after {} name", &functype).as_str(),
+            format!("expect ( after {:#?} name", &functype).as_str(),
         );
 
         let mut params = Vec::<Token>::new();
@@ -388,7 +409,7 @@ impl Parser {
         }
         self.consume(
             TokenType::RightParen,
-            format!("expect ) after {} params", &functype).as_str(),
+            format!("expect ) after {:#?} params", &functype).as_str(),
         );
 
         let body = self.block();
@@ -396,6 +417,7 @@ impl Parser {
             name,
             params,
             body: Box::new(body),
+            functype
         };
     }
 
@@ -480,8 +502,36 @@ impl Parser {
     fn declaration(&mut self) -> Statement {
         if self.matches(Vec::<TokenType>::from([TokenType::Var])) {
             return self.var_declaration();
+        } else if self.matches(Vec::<TokenType>::from([TokenType::Fun])) {
+            return self.function(FunctionType::Function);
+        } else if self.matches(Vec::<TokenType>::from([TokenType::Class])) {
+            return self.class();
         }
         return self.statement();
+    }
+
+    fn class(&mut self) -> Statement {
+        let name = self.consume(TokenType::Identifier, "Expected Identified after class");
+
+        self.consume(
+            TokenType::LeftBrace,
+            "Expected left brace after class identifier",
+        );
+        let mut methods = Vec::<Statement>::new();
+        while !self.check(TokenType::RightBrace) && !self.at_end() {
+            methods.push(self.function(FunctionType::Method));
+        }
+
+        self.consume(
+            TokenType::RightBrace,
+            "Expected right brace after class body",
+        );
+
+        return Statement::Class {
+            name: name.clone(),
+            superclass: Expression::Variable { name: name.clone() },
+            methods,
+        };
     }
 
     fn var_declaration(&mut self) -> Statement {

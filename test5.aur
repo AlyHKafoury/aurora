@@ -1,0 +1,7 @@
+var a = 5;
+print a;
+function test() {
+    return 3;
+}
+
+print test();

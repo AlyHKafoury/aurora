@@ -1,7 +1,10 @@
 use crate::aurora::expressions::Expression;
 use crate::aurora::token::Token;
 
-use super::{environment::Environment, expressions::Object};
+use super::{
+    environment::{Environment, Memory},
+    expressions::{FunctionType, Object},
+};
 
 #[derive(Debug, PartialEq, PartialOrd, Clone)]
 pub enum Statement {
@@ -20,6 +23,7 @@ pub enum Statement {
         name: Token,
         params: Vec<Token>,
         body: Box<Statement>,
+        functype: FunctionType,
     },
     If {
         condition: Expression,
@@ -63,11 +67,22 @@ impl Statement {
                     Some(expr) => expr.evaluate(env),
                     None => super::expressions::Object::NilObject,
                 };
-
-                env.define(n.clone(), value);
+                let v = match value {
+                    Object::ClassInstance {
+                        name: _,
+                        class,
+                        memory,
+                    } => Object::ClassInstance {
+                        name: n.clone(),
+                        class,
+                        memory,
+                    },
+                    _ => value,
+                };
+                env.define(n.clone(), v);
             }
             Statement::Block { statements } => {
-                env.stackpush();
+                env.stackpush(Memory::new());
                 for stmnt in statements.iter() {
                     stmnt.evaluate(env);
                     if env.is_set_return() {
@@ -105,7 +120,9 @@ impl Statement {
                 body,
             } => {
                 match &*(*init) {
-                    Some(stmnt) => {let _ = &stmnt.evaluate(env);},
+                    Some(stmnt) => {
+                        let _ = &stmnt.evaluate(env);
+                    }
                     None => (),
                 };
 
@@ -133,11 +150,16 @@ impl Statement {
                     }
                 }
             }
-            Statement::Function { name, params, body } => {
+            Statement::Function {
+                name,
+                params,
+                body,
+                functype,
+            } => {
                 let mut captures = Vec::<(Token, Object)>::new();
                 env.stack_temp_push();
                 for t in params {
-                    env.define(t.clone(), Object::NilObject);                    
+                    env.define(t.clone(), Object::NilObject);
                 }
                 body.resolve(&mut captures, env);
                 env.stack_temp_pop();
@@ -148,16 +170,49 @@ impl Statement {
                         parameters: params.clone(),
                         body: body.clone(),
                         captures: captures,
+                        functype: functype.clone(),
                     },
                 );
             }
-            Statement::Return { keyword:_, value } => match value {
-                Some(expr) => {
-                    let object_value = expr.evaluate(env);
-                    env.set_return(object_value);
+            Statement::Return { keyword: k, value } => {
+                if !env.is_in_function() {
+                    panic!("cannot return without being in function {}", k.clone());
                 }
-                None => env.set_return(Object::NilObject),
-            },
+                match value {
+                    Some(expr) => {
+                        let object_value = expr.evaluate(env);
+                        env.set_return(object_value.clone());
+                    }
+                    None => env.set_return(Object::NilObject),
+                }
+            }
+            Statement::Class {
+                name,
+                superclass: _,
+                methods,
+            } => {
+                let mut captures = Vec::<(Token, Object)>::new();
+                env.stack_temp_push();
+                for stmnt in methods {
+                    stmnt.resolve(&mut captures, env);
+                }
+                env.stack_temp_pop();
+                let mut class_env = Environment::new();
+                for capture in captures {
+                    class_env.inject(capture.0, capture.1);
+                }
+                for method in methods {
+                    method.evaluate(&mut class_env);
+                }
+                env.define(
+                    name.clone(),
+                    Object::Class {
+                        name: name.clone(),
+                        class_env: Box::new(class_env),
+                    },
+                );
+            }
+
             _ => panic!("Invalid Statement"),
         }
     }
@@ -171,18 +226,19 @@ impl Statement {
             }
             Statement::Class {
                 name,
-                superclass,
-                methods,
-            } => todo!(),
+                superclass: _,
+                methods: _,
+            } => env.define(name.clone(), Object::NilObject),
             Statement::Expression { expression } => expression.resolve(captures, env),
             Statement::Function {
                 name,
                 params,
                 body,
+                functype: _,
             } => {
                 env.define(name.clone(), Object::NilObject);
                 for t in params {
-                    env.define(t.clone(), Object::NilObject);                    
+                    env.define(t.clone(), Object::NilObject);
                 }
                 body.resolve(captures, env);
             }
@@ -199,20 +255,21 @@ impl Statement {
                 }
             }
             Statement::Print { expression } => expression.resolve(captures, env),
-            Statement::Return { keyword:_, value } => match value {
+            Statement::Return { keyword: _, value } => match value {
                 Some(x) => x.resolve(captures, env),
                 None => (),
             },
             Statement::Variable { name, init } => {
                 env.define(name.clone(), Object::NilObject);
                 match init {
-                Some(x) => x.resolve(captures, env),
-                None => (),
-            }},
+                    Some(x) => x.resolve(captures, env),
+                    None => (),
+                }
+            }
             Statement::While { condition, body } => {
                 condition.resolve(captures, env);
                 body.resolve(captures, env);
-            },
+            }
             Statement::For {
                 init,
                 condition,
@@ -232,7 +289,7 @@ impl Statement {
                     None => (),
                 }
                 body.resolve(captures, env);
-            },
+            }
         }
     }
 }

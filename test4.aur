@@ -1,0 +1,18 @@
+class Test {
+    function testcode(){
+        print "test";
+    }
+}
+
+var a = Test();
+a.testcode();
+
+function baaz() {
+    print "baaz";
+}
+a.testcode();
+baaz();
+a.foo = baaz;
+a.foo();
+a.bebe = 5;
+print a.bebe;

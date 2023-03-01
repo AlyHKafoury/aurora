@@ -1,15 +1,15 @@
-fun sum(a,b,c) {
+function sum(a,b,c) {
     print a + b + c;
 }
 
-fun min(a,b) {
+function min(a,b) {
     print a > b;
 }
 
-fun test(){
+function test(){
     var x = "inner";
     x = "inner2";
-    fun pp(){
+    function pp(){
         print "test from pp";
         print x;
         if(false) {
@@ -31,7 +31,7 @@ var test2 = test();
 
 var global = "global";
 print global;
-fun local() {
+function local() {
     var global = "local";
     print global;
 }
