@@ -267,7 +267,9 @@ impl Parser {
             };
         }
         if self.matches(vec![TokenType::This]) {
-            return Expression::This { keyword: self.previous() }
+            return Expression::This {
+                keyword: self.previous(),
+            };
         }
         if self.matches(Vec::from([TokenType::Identifier])) {
             return Expression::Variable {
@@ -280,6 +282,15 @@ impl Parser {
             return Expression::Grouping {
                 expression: Box::new(expr),
             };
+        }
+        if self.matches(Vec::from([TokenType::Super])) {
+            let keyword = self.previous().clone();
+            self.consume(TokenType::Dot, "Expected dot after Super keyword");
+            let method = self.consume(
+                TokenType::Identifier,
+                "Expected Idenfitifer after Super and dot",
+            );
+            return Expression::Super { keyword, method };
         }
         panic!(
             "Faild to Parse Primary Expression {}",
@@ -417,7 +428,7 @@ impl Parser {
             name,
             params,
             body: Box::new(body),
-            functype
+            functype,
         };
     }
 
@@ -513,10 +524,21 @@ impl Parser {
     fn class(&mut self) -> Statement {
         let name = self.consume(TokenType::Identifier, "Expected Identified after class");
 
+        let mut superclass: Option<Token> = None;
+        if self.check(TokenType::Less) {
+            self.consume(TokenType::Less, "Expected < after class name");
+            superclass = Some(self.consume(TokenType::Identifier, "Expected Identifier after <"));
+            self.consume(
+                TokenType::Greater,
+                "Expected > after super class Identifier",
+            );
+        }
+
         self.consume(
             TokenType::LeftBrace,
             "Expected left brace after class identifier",
         );
+
         let mut methods = Vec::<Statement>::new();
         while !self.check(TokenType::RightBrace) && !self.at_end() {
             methods.push(self.function(FunctionType::Method));
@@ -529,7 +551,7 @@ impl Parser {
 
         return Statement::Class {
             name: name.clone(),
-            superclass: Expression::Variable { name: name.clone() },
+            superclass,
             methods,
         };
     }

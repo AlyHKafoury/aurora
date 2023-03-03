@@ -13,7 +13,7 @@ pub enum Statement {
     },
     Class {
         name: Token,
-        superclass: Expression,
+        superclass: Option<Token>,
         methods: Vec<Statement>,
     },
     Expression {
@@ -188,7 +188,7 @@ impl Statement {
             }
             Statement::Class {
                 name,
-                superclass: _,
+                superclass,
                 methods,
             } => {
                 let mut captures = Vec::<(Token, Object)>::new();
@@ -197,7 +197,19 @@ impl Statement {
                     stmnt.resolve(&mut captures, env);
                 }
                 env.stack_temp_pop();
-                let mut class_env = Environment::new();
+                let mut class_env: Environment;
+                match superclass {
+                    Some(t) => {
+                        let class_parent = env.get(t.clone());
+                        match class_parent {
+                            Object::Class { name:_, class_env: parent_env } => {
+                                class_env = Environment::new_from_parent(&mut parent_env.clone());
+                            },
+                            _ => panic!("Parent should be a class at {}", name)
+                        }
+                    }
+                    None => class_env = Environment::new()
+                }
                 class_env.define(name.clone(), Object::NilObject);
                 for capture in captures {
                     class_env.inject(capture.0, capture.1);

@@ -1,0 +1,23 @@
+class Parent {
+    function Parent() {
+        print "Parent Construct";
+    }
+    function testprint() {
+        print "parent";
+    }
+}
+
+class child<Parent> {
+    function child(){
+        super.Parent();
+        print "child Construct";
+    }
+    function testprint() {
+        super.testprint();
+        print "child";
+    }
+}
+
+var a = child();
+a.testprint();
+print time();

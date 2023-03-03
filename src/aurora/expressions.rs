@@ -1,5 +1,6 @@
 use crate::aurora::token::{Token, TokenType};
 use std::mem;
+use chrono::prelude::*;
 
 use super::{
     environment::{Environment, Memory},
@@ -14,10 +15,18 @@ pub enum FunctionType {
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
+pub enum InternalFunction {
+    Time
+}
+
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub enum Object {
     StringObject(String),
     NumberObject(f64),
     BoolObject(bool),
+    InternalFunction{
+        internaltype: InternalFunction,
+    },
     FunctionObject {
         name: Token,
         parameters: Vec<Token>,
@@ -378,10 +387,17 @@ impl Expression {
                         }
                         let instance = Object::ClassInstance {
                             name: n.clone(),
-                            class: Box::new(callee),
+                            class: Box::new(callee.clone()),
                             memory: instance_memory,
                         };
                         return instance;
+                    }
+                    Object::InternalFunction { internaltype } => {
+                        match internaltype {
+                            InternalFunction::Time => {
+                                return Object::StringObject(Local::now().to_string())
+                            }
+                        }
                     }
                     _ => panic!("Object {} not a function at {}", paren.lexeme, paren.line),
                 }
@@ -473,7 +489,35 @@ impl Expression {
                     ),
                 }
             }
-            _ => panic!("No implementation"),
+            Expression::Super { keyword, method } => {
+                if env.is_in_constructor() {
+                    return env.get(method.clone());
+                }
+                match (env.is_class_instance(), env.is_in_method()) {
+                    (Some(x), true) => match env.get(x.clone()) {
+                        Object::ClassInstance { name:_, class, memory:_ } => {
+                            match *class {
+                               Object::Class { name:n, class_env } => {
+                                // panic!("TEst {:#?}", env.get(n.clone()));
+                                return class_env.get_from_parent(method.clone())
+                               },
+                               _ => panic!(
+                                "Invalid use of Super outside of class or outside of method at {}",
+                                keyword
+                            ),
+                            }
+                        },
+                        _ => panic!(
+                            "Invalid use of Super outside of class or outside of method at {}",
+                            keyword
+                        ),
+                    },
+                    _ => panic!(
+                        "Invalid use of Super outside of class or outside of method at {}",
+                        keyword
+                    ),
+                }                
+            }
         }
     }
 
@@ -525,7 +569,7 @@ impl Expression {
                 object.resolve(captures, env);
                 value.resolve(captures, env);
             }
-            Expression::Super { keyword, method } => todo!(),
+            Expression::Super { keyword:_, method:_ } => (),
             Expression::This { keyword: _ } => (),
             Expression::Unary { operator: _, right } => right.resolve(captures, env),
             Expression::Variable { name } => match env.need_to_capture(name.clone()) {

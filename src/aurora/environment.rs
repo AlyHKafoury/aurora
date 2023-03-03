@@ -1,8 +1,8 @@
 use std::collections::BTreeMap;
 
 use super::{
-    expressions::{FunctionType, Object},
-    token::Token,
+    expressions::{FunctionType, Object, InternalFunction},
+    token::{Token, TokenType},
 };
 
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
@@ -50,6 +50,19 @@ pub struct Environment {
 }
 
 impl Environment {
+    pub fn global(&mut self) {
+        self.stack[0].define(
+            Token {
+                lexeme: "time".to_owned(),
+                tokentype: TokenType::Identifier,
+                literal: "time".to_owned(),
+                line: 0,
+            },
+            Object::InternalFunction {
+                internaltype: InternalFunction::Time,
+            },
+        )
+    }
     pub fn new() -> Self {
         let mut memorystack = Vec::<Memory>::new();
         memorystack.push(Memory::new());
@@ -63,7 +76,21 @@ impl Environment {
         };
     }
 
-    pub fn stackpush(&mut self, mut memory: Memory) {
+    pub fn new_from_parent(parent: &mut Environment) -> Self {
+        let mut memorystack = Vec::<Memory>::new();
+        memorystack.append(&mut parent.stack);
+        memorystack.push(Memory::new());
+        return Environment {
+            stack: memorystack,
+            return_switch: false,
+            return_value: Object::NilObject,
+            injects: Vec::<(Token, Object)>::new(),
+            in_function: Vec::<FunctionType>::new(),
+            class_instance: Vec::<Token>::new(),
+        };
+    }
+
+    pub fn stackpush(&mut self, memory: Memory) {
         self.stack.push(memory);
         loop {
             match self.injects.pop() {
@@ -101,6 +128,24 @@ impl Environment {
 
     pub fn get(&self, token: Token) -> Object {
         let mut memorysize = self.stack.len() - 1;
+        loop {
+            match self.stack[memorysize].get(token.clone()) {
+                Some(x) => return x,
+                _ => {
+                    if memorysize > 0 {
+                        memorysize -= 1
+                    } else if memorysize == 0 {
+                        break;
+                    }
+                }
+            }
+        }
+
+        panic!("Undefined variable {}, {:#?}", token.lexeme, self.stack[0]);
+    }
+
+    pub fn get_from_parent(&self, token: Token) -> Object {
+        let mut memorysize = self.stack.len() - 2 - self.in_function.len();
         loop {
             match self.stack[memorysize].get(token.clone()) {
                 Some(x) => return x,
@@ -186,22 +231,22 @@ impl Environment {
         self.class_instance.push(class_instance);
     }
 
-    pub fn is_in_function(&self) -> bool{
+    pub fn is_in_function(&self) -> bool {
         match self.in_function.last() {
             Some(FunctionType::Function) => true,
-            _ => false
+            _ => false,
         }
     }
-    pub fn is_in_method(&self) -> bool{
+    pub fn is_in_method(&self) -> bool {
         match self.in_function.last() {
             Some(FunctionType::Method) => true,
-            _ => false
+            _ => false,
         }
     }
-    pub fn is_in_constructor(&self) -> bool{
+    pub fn is_in_constructor(&self) -> bool {
         match self.in_function.last() {
             Some(FunctionType::Constructor) => true,
-            _ => false
+            _ => false,
         }
     }
     pub fn is_class_instance(&mut self) -> Option<Token> {
@@ -210,12 +255,11 @@ impl Environment {
             Some(v) => {
                 self.class_instance.push(v.clone());
                 value
-            },
-            None => None
+            }
+            None => None,
         }
-        
     }
-    
+
     pub fn clear_class_instance(&mut self) {
         self.class_instance.pop();
     }

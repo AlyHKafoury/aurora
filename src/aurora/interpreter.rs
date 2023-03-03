@@ -7,11 +7,13 @@ pub struct Interpreter {
 
 impl Interpreter {
     pub fn new(statments: Vec<Statement> ) -> Self {
-        return Interpreter { statments, env: Environment::new() }
+        let mut env = Environment::new();
+        env.global();
+        return Interpreter { statments, env }
     }
 
     pub fn interpret(&mut self) {
-        for mut stmt in self.statments.clone() {
+        for stmt in self.statments.clone() {
             stmt.evaluate(&mut self.env)
         }
     }
