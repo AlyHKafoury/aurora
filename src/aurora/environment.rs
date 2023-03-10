@@ -61,7 +61,18 @@ impl Environment {
             Object::InternalFunction {
                 internaltype: InternalFunction::Time,
             },
-        )
+        );
+        self.stack[0].define(
+            Token {
+                lexeme: "clock".to_owned(),
+                tokentype: TokenType::Identifier,
+                literal: "clock".to_owned(),
+                line: 0,
+            },
+            Object::InternalFunction {
+                internaltype: InternalFunction::Clock,
+            },
+        );
     }
     pub fn new() -> Self {
         let mut memorystack = Vec::<Memory>::new();

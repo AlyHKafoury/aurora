@@ -6,6 +6,11 @@ use aurora::interpreter::Interpreter;
 
 
 fn main() {
+    const N: usize = 1_000_000;
+
+    std::thread::Builder::new()
+        .stack_size(1024 * N)
+        .spawn(||{
     match  env::args().len() {
         1 => run_prompt(),
         2 => run_file(env::args().nth(1).unwrap()).unwrap(),
@@ -13,7 +18,7 @@ fn main() {
             println!("Usage: aurora [script]");
             exit(1);
         }
-    }
+    }}).unwrap().join().unwrap();
 }
 
 fn run_prompt() -> () {

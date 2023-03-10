@@ -16,7 +16,8 @@ pub enum FunctionType {
 
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub enum InternalFunction {
-    Time
+    Time,
+    Clock
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
@@ -396,6 +397,9 @@ impl Expression {
                         match internaltype {
                             InternalFunction::Time => {
                                 return Object::StringObject(Local::now().to_string())
+                            }
+                            InternalFunction::Clock => {
+                                return Object::NumberObject(Local::now().timestamp() as f64)
                             }
                         }
                     }

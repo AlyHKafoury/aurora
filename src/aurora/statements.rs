@@ -161,6 +161,7 @@ impl Statement {
                 for t in params {
                     env.define(t.clone(), Object::NilObject);
                 }
+                env.define(name.clone(), Object::NilObject);
                 body.resolve(&mut captures, env);
                 env.stack_temp_pop();
                 env.define(
@@ -173,6 +174,7 @@ impl Statement {
                         functype: functype.clone(),
                     },
                 );
+
             }
             Statement::Return { keyword: k, value } => {
                 if !env.is_in_function() {
