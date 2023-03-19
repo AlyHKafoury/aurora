@@ -140,7 +140,7 @@ impl Scanner {
         if self.at_end() {
             return false;
         }
-        if self.source.chars().nth(self.current ).unwrap() != expected {
+        if self.source.chars().nth(self.current).unwrap() != expected {
             return false;
         }
         self.current += 1;
